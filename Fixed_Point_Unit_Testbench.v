@@ -1,97 +1,75 @@
 `timescale 1 ns / 1 ns
 
-`include "Fixed_Point_Unit.v"
+`include "Defines.vh"
 
 module Fixed_Point_Unit_Testbench;
 
-    //////////////////////
-    // Clock Generation //
-    //////////////////////
-    parameter CLK_PERIOD = 4;
-    reg clk = 1'b1;
-    initial begin forever #(CLK_PERIOD/2) clk = ~clk; end
-    reg reset = `ENABLE;    
+time clock_period = 10;
 
-    /////////////////
-    // FPU Signals //
-    /////////////////
+parameter WIDTH = 32;
+parameter FBITS = 10;
 
-    reg [31 : 0] operand_1;
-    reg [31 : 0] operand_2;
-    reg [ 1 : 0] operation;
+reg clk   = 'b0;
+reg reset = 'b0;
 
-    wire [31 : 0] fpu_result;
-    wire fpu_ready;
+reg [WIDTH - 1 : 0] operand_1 = 'b0;
+reg [WIDTH - 1 : 0] operand_2 = 'b0;
 
-    Fixed_Point_Unit 
-    #(
-        .WIDTH(32),
-        .FBITS(10)
-    )
-    uut
-    (
-        .clk(clk),
-        .reset(reset),
+reg [ 1 : 0] operation = 'b0;
 
-        .operand_1(operand_1),
-        .operand_2(operand_2),
-        
-        .operation(operation),
+wire [WIDTH - 1 : 0] result;
+wire                 ready;
 
-        .result(fpu_result),
-        .ready(fpu_ready)
-    );
+Fixed_Point_Unit
+#(
+    .WIDTH(WIDTH),
+    .FBITS(FBITS)
+)
+uut
+(
+    .clk(clk),
+    .reset(reset),
     
-    initial 
-    begin
-        $dumpfile("Fixed_Point_Unit.vcd");    
-        $dumpvars(0, Fixed_Point_Unit_Testbench);
-        repeat (3) @(posedge clk);
-        reset <= `DISABLE;
+    .operand_1(operand_1),
+    .operand_2(operand_2),
+    
+    .operation(operation),
 
-        repeat (2) @(posedge clk);
-        operand_1 = 32'b0000_0011_1010_0000_00;
-        operand_2 = 32'b0000_0100_0001_0000_00;
-        operation = `FPU_ADD;
+    .result(result),
+    .ready(ready)
+);
 
-        repeat (1) @(posedge clk);
-        operand_1 = 'bz;
-        operand_2 = 'bz;
-        operation = 'bz;
+initial
+begin
+    forever #(clock_period / 2) clk = ~clk;
+end
 
-        repeat (1) @(posedge clk);
-        operand_1 = 32'b0000_0011_1010_0000_00;
-        operand_2 = 32'b0000_0001_1000_0000_00;
-        operation = `FPU_SUB;
+initial
+begin
+    #(clock_period / 4);
+    
+    reset = 1'b1;
+    
+    #(clock_period);
+    
+    reset = 'b0;
+    
+    operand_1 = 32'b0000000000000000001111_1100000000;
+    operand_2 = 32'b0000000000000000000100_1010000000;
+    
+    operation = `FPU_MUL;
+    
+    #(clock_period);
+        
+    operand_1 = 32'b0000000000000001100011_1100000000;
+    operand_2 = 32'b0000000000000000000000_0000000000;
 
-        repeat (1) @(posedge clk);
-        operand_1 = 'bz;
-        operand_2 = 'bz;
-        operation = 'bz;
+    operation = `FPU_SQRT;
 
-        repeat (1) @(posedge clk);
-        operand_1 = 32'b0000_0011_1010_0000_00;
-        operand_2 = 32'b0000_0001_1000_0000_00;
-        operation = `FPU_MUL;
+    #(clock_period * 13);
+    
+    $finish;
+end
 
-        repeat (1) @(posedge fpu_ready);
-        repeat (1) @(posedge clk);
-        operand_1 = 'bz;
-        operand_2 = 'bz;
-        operation = 'bz;
-
-        repeat (1) @(posedge clk);
-        operand_1 = 'b11100110000000000;
-        operation = `FPU_SQRT;
-
-        repeat (1) @(posedge fpu_ready);
-        repeat (3) @(posedge clk);
-        operand_1 = 'bz;
-        operand_2 = 'bz;
-        operation = 'bz;
-
-        repeat (10) @(posedge clk);
-        $dumpoff;
-        $finish;
-    end
 endmodule
+
